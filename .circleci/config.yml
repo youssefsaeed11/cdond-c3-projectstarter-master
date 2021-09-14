@@ -327,35 +327,58 @@ jobs:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
       - undo_migrations
 
+
 workflows:
-  default:
+  my_workflow:
     jobs:
-      - build-frontend
-      - build-backend
-      - test-frontend:
-          requires: [build-frontend]
-      - test-backend:
-          requires: [build-backend]
-      - scan-backend:
-          requires: [build-backend]
-      - scan-frontend:
-          requires: [build-frontend]
-      - deploy-infrastructure:
-          requires: [test-frontend, test-backend, scan-frontend, scan-backend]
+      - build_backend
+      - build_frontend
+      - test_backend:
+          requires:
+            - build_backend
+      - test_frontend:
+          requires:
+            - build_frontend
+      - analyze_backend:
+          requires:
+            - test_backend
+      - analyze_frontend:
+          requires:
+            - test_frontend
+      - deploy_backend_infrastructure:
+          requires:
+            - analyze_backend
+            - analyze_frontend
           filters:
             branches:
-              only: [test-feature-branch]
-      - configure-infrastructure:
-          requires: [deploy-infrastructure]
-      - run-migrations:
-          requires: [configure-infrastructure]
-      - deploy-frontend:
-          requires: [run-migrations]
-      - deploy-backend:
-          requires: [run-migrations]
-      - smoke-test:
-          requires: [deploy-backend, deploy-frontend]
-      - cloudfront-update:
-          requires: [smoke-test]
-      - cleanup:
-          requires: [cloudfront-update]
+              only: [ master ]
+      - deploy_frontend_infrastructure:
+          requires:
+            - analyze_backend
+            - analyze_frontend
+          filters:
+            branches:
+              only: [ master ]
+      - run_db_migrations_for_backend:
+          requires:
+            - deploy_backend_infrastructure
+      - deploy_backend_artifact:
+          requires:
+            - run_db_migrations_for_backend
+      - package_frontend_artifact:
+          requires:
+            - deploy_frontend_infrastructure
+            - run_db_migrations_for_backend
+      - deploy_frontend_artifact:
+          requires:
+            - package_frontend_artifact
+      - smoke_test_backend:
+          requires:
+            - deploy_backend_artifact
+      - smoke_test_frontend:
+          requires:
+            - deploy_frontend_artifact
+      - deploy_cloudfront_infrastructure:
+          requires:
+            - smoke_test_backend
+            - smoke_test_frontend
